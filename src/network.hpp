@@ -21,7 +21,12 @@ class Network
         ~Network();
         void setUpClient(const std::string& host, int port);
         void setUpServer(const std::string& address, int port);
-        
+        bool sendMessage(const std::string& message);
+        std::string receiveMessage();
+
+        // Getters
+        bool isSocketSet() const { return this->sock != -1; }
+
 }; 
 
 #endif // NETWORK_INFO_HPP

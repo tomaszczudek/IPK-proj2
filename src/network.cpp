@@ -3,6 +3,8 @@
 #include <iostream>
 #include <unistd.h>
 
+#define MAX_PACKET_SIZE 1200
+
 Network::Network()
 {
     this->sock = -1;
@@ -106,4 +108,67 @@ void Network::setUpServer(const std::string& address, int port)
 
     std::cerr << "Could not bind UDP server socket" << std::endl;
     throw EX_UNAVAILABLE;
+}
+
+bool Network::sendMessage(const std::string& message)
+{
+    if (!this->knowsDest)
+    {
+        std::cerr << "Destination address is not set" << std::endl;
+        return false;
+    }
+
+    ssize_t sent = sendto(
+        this->sock,
+        message.data(),
+        message.size(),
+        0,
+        reinterpret_cast<struct sockaddr*>(&this->destAddress),
+        this->destAddressLength
+    );
+
+    if (sent == -1)
+    {
+        std::cerr << "sendto failed: " << strerror(errno) << std::endl;
+        return false;
+    }
+
+    if (static_cast<std::size_t>(sent) != message.size())
+    {
+        std::cerr << "sendto sent only part of the message" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+std::string Network::receiveMessage()
+{
+    char buffer[MAX_PACKET_SIZE];
+
+    sockaddr_storage senderAddress {};
+    socklen_t senderAddressLength = sizeof(senderAddress);
+
+    ssize_t received = recvfrom(
+        this->sock,
+        buffer,
+        sizeof(buffer),
+        0,
+        reinterpret_cast<struct sockaddr*>(&senderAddress),
+        &senderAddressLength
+    );
+
+    if (received == -1)
+    {
+        std::cerr << "recvfrom failed: " << strerror(errno) << std::endl;
+        throw EX_OSERR;
+    }
+
+    if (!this->knowsDest)
+    {
+        std::memcpy(&this->destAddress, &senderAddress, senderAddressLength);
+        this->destAddressLength = senderAddressLength;
+        this->knowsDest = true;
+    }
+
+    return std::string(buffer, static_cast<std::size_t>(received));
 }

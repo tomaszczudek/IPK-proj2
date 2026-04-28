@@ -2,7 +2,7 @@
 
 Packet::Packet()
 {
-    this->header = {MessageType::NONE, 0};
+    this->header = {MessageType::NONE, 0, 0, 0};
     this->data.reserve(MAX_DATA_SIZE);
 }
 

@@ -9,6 +9,18 @@
 #include <sysexits.h>
 #include <iostream>
 
+enum FSM : uint8_t
+{
+    START,
+    WAIT_CONFIRM,
+    SEND_DATA,
+    WAIT_CONFIRM_DATA,
+    END,
+
+    WAIT_START,
+    WAIT_DATA,
+};
+
 enum MessageType : uint8_t
 {
     NONE,           //> No message type, initialization or invalid to be used
