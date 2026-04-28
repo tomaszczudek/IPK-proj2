@@ -2,11 +2,11 @@
 
 Params::Params()
 {
-    address = "";
-    file = "";
-    isServer = -1;
-    portUDP = -1;
-    timeout = 1;
+    this->address = "";
+    this->file = "";
+    this->isServer = UNDEFINED;
+    this->portUDP = -1;
+    this->timeout = 1;
 }
 
 void Params::printHelp()
@@ -48,21 +48,21 @@ void Params::parseArgs(int argc, char **argv)
         }
         else if (arg == "-s")
         {
-            if (isServer != -1)
+            if (this->isServer != UNDEFINED)
             {
                 std::cerr << "Error: Both -s and -c options specified." << std::endl;
                 throw EX_USAGE;
             }
-            isServer = 1;
+            this->isServer = SERVER;
         }
         else if (arg == "-c")
         {
-            if (isServer != -1)
+            if (this->isServer != UNDEFINED)
             {
                 std::cerr << "Error: Both -s and -c options specified." << std::endl;
                 throw EX_USAGE;
             }
-            isServer = 0;
+            this->isServer = CLIENT;
         }
         else if (arg == "-p")
         {
@@ -71,7 +71,7 @@ void Params::parseArgs(int argc, char **argv)
                 std::cerr << "Error: Missing argument for -p option." << std::endl;
                 throw EX_USAGE;
             }
-            portUDP = std::stoi(argv[++i]);
+            this->portUDP = std::stoi(argv[++i]);
         }
         else if (arg == "-a")
         {
@@ -80,7 +80,7 @@ void Params::parseArgs(int argc, char **argv)
                 std::cerr << "Error: Missing argument for -a option." << std::endl;
                 throw EX_USAGE;
             }
-            address = argv[++i];
+            this->address = argv[++i];
         }
         else if (arg == "-i")
         {
@@ -92,11 +92,11 @@ void Params::parseArgs(int argc, char **argv)
             arg = argv[++i];
             if (arg == "-")
             {
-                file = "stdin";
+                this->file = "-";
             }
             else
             {
-                file = arg;
+                this->file = arg;
             }
         }
         else if (arg == "-o")
@@ -109,11 +109,11 @@ void Params::parseArgs(int argc, char **argv)
             arg = argv[++i];
             if (arg == "-")
             {
-                file = "stdout";
+                this->file = "-";
             }
             else
             {
-                file = arg;
+                this->file = arg;
             }
         }
         else if (arg == "-w")
@@ -123,7 +123,7 @@ void Params::parseArgs(int argc, char **argv)
                 std::cerr << "Error: Missing argument for -w option." << std::endl;
                 throw EX_USAGE;
             }
-            timeout = std::stoi(argv[++i]);
+            this->timeout = std::stoi(argv[++i]);
         }
         else
         {
@@ -131,16 +131,34 @@ void Params::parseArgs(int argc, char **argv)
             throw EX_USAGE;
         }
     }
+}
 
-    if (file == "")
+void Params::validate()
+{
+    if (this->isServer == UNDEFINED)
     {
-        if (isServer == 1)
-        {
-            file = "stdout";
-        }
-        else if (isServer == 0)
-        {
-            file = "stdin";
-        }
+        std::cerr << "Error: Either -s or -c option must be specified." << std::endl;
+        throw EX_USAGE;
+    }
+
+    if (this->isServer == SERVER && this->portUDP == -1)
+    {
+        std::cerr << "Error: -p option must be specified in server mode." << std::endl;
+        throw EX_USAGE;
+    }
+
+    if (this->isServer == CLIENT && (this->portUDP == -1 || this->address == ""))
+    {
+        std::cerr << "Error: Both -p and -a options must be specified in client mode." << std::endl;
+        throw EX_USAGE;
+    }
+
+    if (this->file == "")
+        this->file = "-";
+
+    if (this->portUDP <= 0 || this->portUDP > 65535)
+    {
+        std::cerr << "Error: Invalid port number." << std::endl;
+        throw EX_USAGE;
     }
 }

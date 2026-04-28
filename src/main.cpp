@@ -1,5 +1,4 @@
 #include "params.hpp"
-#include "type.hpp"
 
 int main(int argc, char **argv)
 {
