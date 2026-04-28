@@ -1,4 +1,7 @@
 #include "client.hpp"
+#include <map>
+
+#define WINDOW_SIZE 16
 
 Client::Client(Params params)
 {
@@ -77,31 +80,106 @@ void Client::startClient()
 {
     this->initClient();
 
-    uint8_t fsmState = FSM::START;
+    FSMType fsmState = FSMType::START;
     std::string receivedData;
+    std::string sentData;
 
-    while (true)
+    uint32_t nextPacketId = 0;
+    bool inputEnded = false;
+    std::map<uint32_t, std::string> unconfirmedPackets;
+
+    while (fsmState != FSMType::END)
     {
         switch (fsmState)
         {
-            case FSM::START:
+            case FSMType::START:
+            {
                 this->sendMessage(MessageType::START, 0, "");
-                fsmState = FSM::WAIT_CONFIRM;
+                fsmState = FSMType::WAIT_CONFIRM;
                 break;
-            
-            case FSM::WAIT_CONFIRM:
+            }
+
+            case FSMType::WAIT_CONFIRM:
+            {
                 receivedData = this->network.receiveMessage();
-                break;
+                this->packet.deserialize(receivedData);
 
-            case FSM::SEND_DATA:
-                break;
+                if (this->packet.getType() == MessageType::CONFIRM)
+                {
+                    fsmState = FSMType::SEND_DATA;
+                }
+                else
+                {
+                    std::cerr << "Error: Expected CONFIRM message, received different type.\n";
+                    fsmState = FSMType::START;
+                }
 
-            case FSM::WAIT_CONFIRM_DATA:
                 break;
+            }
 
-            case FSM::END:
+            case FSMType::SEND_DATA:
+            {
+                while (!inputEnded && unconfirmedPackets.size() < WINDOW_SIZE)
+                {
+                    sentData = this->readData();
+
+                    if (sentData.empty())
+                    {
+                        inputEnded = true;
+                        break;
+                    }
+
+                    this->sendMessage(MessageType::DATA, nextPacketId, sentData);
+                    unconfirmedPackets[nextPacketId] = sentData;
+                    nextPacketId++;
+                }
+
+                if (inputEnded && unconfirmedPackets.empty())
+                {
+                    this->sendMessage(MessageType::END, nextPacketId, "");
+                    fsmState = FSMType::END;
+                }
+                else
+                {
+                    fsmState = FSMType::WAIT_CONFIRM_DATA;
+                }
+
                 break;
+            }
 
+            case FSMType::WAIT_CONFIRM_DATA:
+            {
+                receivedData = this->network.receiveMessage();
+                this->packet.deserialize(receivedData);
+
+                PacketHeader header = this->packet.getHeader();
+
+                if (header.type == MessageType::CONFIRM_DATA)
+                {
+                    unconfirmedPackets.erase(header.packetId);
+                    fsmState = FSMType::SEND_DATA;
+                }
+                else if (header.type == MessageType::RESEND)
+                {
+                    auto it = unconfirmedPackets.find(header.packetId);
+
+                    if (it != unconfirmedPackets.end())
+                    {
+                        this->sendMessage(MessageType::DATA, it->first, it->second);
+                    }
+
+                    fsmState = FSMType::WAIT_CONFIRM_DATA;
+                }
+                else
+                {
+                    std::cerr << "Error: Expected CONFIRM_DATA message, received different type.\n";
+                    fsmState = FSMType::WAIT_CONFIRM_DATA;
+                }
+
+                break;
+            }
+
+            case FSMType::END:
             default:
                 break;
         }

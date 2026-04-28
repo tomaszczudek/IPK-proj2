@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include <map>
 
 Server::Server(Params params)
 {
@@ -50,7 +51,7 @@ void Server::initServer()
 
     if (!this->network.isSocketSet())
     {
-        std::cerr << "Error: Failed to create or configure client socket.\n";
+        std::cerr << "Error: Failed to create or configure server socket.\n";
         throw EX_OSERR;
     }
 }
@@ -68,18 +69,84 @@ void Server::sendMessage(MessageType type, uint32_t id, const std::string& data)
 void Server::startServer()
 {
     this->initServer();
-    uint8_t fsmState = FSM::WAIT_START;
 
-    while(fsmState != FSM::END)
+    FSMType fsmState = FSMType::WAIT_START;
+    std::string receivedData;
+
+    uint32_t expectedPacketId = 0;
+    bool endReceived = false;
+    uint32_t endPacketId = 0;
+    std::map<uint32_t, std::string> bufferedPackets;
+
+    while (fsmState != FSMType::END)
     {
         switch (fsmState)
         {
-            case FSM::WAIT_START:
-                break;
+            case FSMType::WAIT_START:
+            {
+                receivedData = this->network.receiveMessage();
+                this->packet.deserialize(receivedData);
 
-            case FSM::WAIT_DATA:
-                break;
+                if (this->packet.getHeader().type == MessageType::START)
+                {
+                    this->sendMessage(MessageType::CONFIRM, this->packet.getHeader().packetId, "");
+                    fsmState = FSMType::WAIT_DATA;
+                }
 
+                break;
+            }
+
+            case FSMType::WAIT_DATA:
+            {
+                receivedData = this->network.receiveMessage();
+                this->packet.deserialize(receivedData);
+
+                PacketHeader header = this->packet.getHeader();
+
+                if (header.type == MessageType::DATA)
+                {
+                    if (header.packetId < expectedPacketId)
+                    {
+                        this->sendMessage(MessageType::CONFIRM_DATA, header.packetId, "");
+                    }
+                    else if (header.packetId == expectedPacketId)
+                    {
+                        this->writeData(this->packet.getData());
+                        this->sendMessage(MessageType::CONFIRM_DATA, header.packetId, "");
+                        expectedPacketId++;
+
+                        while (bufferedPackets.find(expectedPacketId) != bufferedPackets.end())
+                        {
+                            std::string data = bufferedPackets[expectedPacketId];
+                            bufferedPackets.erase(expectedPacketId);
+
+                            this->writeData(data);
+                            this->sendMessage(MessageType::CONFIRM_DATA, expectedPacketId, "");
+                            expectedPacketId++;
+                        }
+                    }
+                    else
+                    {
+                        bufferedPackets[header.packetId] = this->packet.getData();
+                        this->sendMessage(MessageType::CONFIRM_DATA, header.packetId, "");
+                    }
+                }
+                else if (header.type == MessageType::END)
+                {
+                    endReceived = true;
+                    endPacketId = header.packetId;
+                }
+
+                if (endReceived && expectedPacketId == endPacketId)
+                {
+                    this->sendMessage(MessageType::CONFIRM, endPacketId, "");
+                    fsmState = FSMType::END;
+                }
+
+                break;
+            }
+
+            case FSMType::END:
             default:
                 break;
         }

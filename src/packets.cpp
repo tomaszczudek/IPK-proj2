@@ -2,7 +2,7 @@
 
 Packet::Packet()
 {
-    this->header = {MessageType::NONE, 0, 0, 0};
+    this->header = { 0, 0, 0, MessageType::NONE};
     this->data.reserve(MAX_DATA_SIZE);
 }
 
@@ -14,7 +14,7 @@ void Packet::setPacket(const MessageType type, const uint32_t id, const std::str
         throw EX_DATAERR;
     }
 
-    this->header = {type, id, 0, static_cast<uint16_t>(data.size())};
+    this->header = {id, 0, static_cast<uint16_t>(data.size()), type};
     this->data = data;
     this->header.checkSum = this->checkSum(this->serialize());
 }
@@ -54,17 +54,28 @@ uint16_t Packet::checkSum(const std::string& data)
 
 std::string Packet::serialize() const
 {
-    std::string rawData(sizeof(PacketHeader) + this->data.size(), '\0');
-    std::memcpy(rawData.data(), &this->header, sizeof(PacketHeader));
-    std::memcpy(rawData.data() + sizeof(PacketHeader), this->data.data(), this->data.size());
-    return rawData;
+    std::string dataBuffer(sizeof(PacketHeader) + this->data.size(), '\0');
+    std::memcpy(dataBuffer.data(), &this->header, sizeof(PacketHeader));
+    std::memcpy(dataBuffer.data() + sizeof(PacketHeader), this->data.data(), this->data.size());
+    return dataBuffer;
 }
 
-void Packet::deserialize(const std::string& rawData)
+void Packet::deserialize(const std::string& dataBuffer)
 {
-    if (rawData.size() < sizeof(PacketHeader))
-        throw EX_DATAERR;
+    if (dataBuffer.size() < sizeof(PacketHeader))
+    {
+        std::cerr << "Error: Data buffer too small to contain a valid packet header.\n";
+        this->setType(MessageType::INVALID);
+        return;
+    }
 
-    std::memcpy(&this->header, rawData.data(), sizeof(PacketHeader));
-    this->data = rawData.substr(sizeof(PacketHeader), this->header.dataSize);
+    if (dataBuffer.size() > MAX_PACKET_SIZE)
+    {
+        std::cerr << "Error: Data buffer exceeds maximum allowed packet size.\n";
+        this->setType(MessageType::INVALID);
+        return;
+    }
+    
+    std::memcpy(&this->header, dataBuffer.data(), sizeof(PacketHeader));
+    this->data = dataBuffer.substr(sizeof(PacketHeader), this->header.dataSize);
 }

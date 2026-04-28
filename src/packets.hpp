@@ -9,7 +9,7 @@
 #include <sysexits.h>
 #include <iostream>
 
-enum FSM : uint8_t
+enum class FSMType : short
 {
     START,
     WAIT_CONFIRM,
@@ -21,10 +21,10 @@ enum FSM : uint8_t
     WAIT_DATA,
 };
 
-enum MessageType : uint8_t
+enum class MessageType : short
 {
     NONE,           //> No message type, initialization or invalid to be used
-
+    INVALID,        //> Invalid message type, used for error handling
     // Base connection messages
     START,          //> Initial message to start the connection
     ERROR,          //> Error message for any issues during connection
@@ -40,10 +40,10 @@ enum MessageType : uint8_t
 
 struct PacketHeader
 {
-    MessageType type;
     uint32_t packetId;
     uint16_t checkSum;
     uint16_t dataSize;
+    MessageType type;
 };
 
 class Packet
@@ -62,8 +62,10 @@ class Packet
         // Getters and setters
         PacketHeader getHeader() const { return this->header; }
         std::string getData() const { return this->data; }
+        MessageType getType() const { return this->header.type; }
         void setHeader(PacketHeader h) { this->header = h; }
         void setData(const std::string &d) { this->data = d; }
+        void setType(MessageType type) { this->header.type = type; }
         
 };
 
