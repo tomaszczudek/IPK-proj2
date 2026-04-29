@@ -5,6 +5,9 @@
 
 #define MAX_PACKET_SIZE 1200
 
+/**
+ * Constructor for the Network class.
+ */
 Network::Network()
 {
     this->sock = -1;
@@ -12,6 +15,9 @@ Network::Network()
     this->knowsDest = false;
 }
 
+/**
+ * Destructor for the Network class.
+ */
 Network::~Network()
 {
     if (this->sock != -1)
@@ -20,6 +26,11 @@ Network::~Network()
     }
 }
 
+/**
+ * Set up the network as a client.
+ * @param host The hostname or IP address of the server to connect to.
+ * @param port The port number to connect to.
+ */
 void Network::setUpClient(const std::string& host, int port)
 {
     struct addrinfo hints {};
@@ -32,7 +43,7 @@ void Network::setUpClient(const std::string& host, int port)
 
     if (ret != 0)
     {
-        std::cerr << "getaddrinfo failed: " << gai_strerror(ret) << std::endl;
+        std::cerr << "Error: getaddrinfo failed: " << gai_strerror(ret) << std::endl;
         throw EX_USAGE;
     }
 
@@ -53,10 +64,15 @@ void Network::setUpClient(const std::string& host, int port)
 
     freeaddrinfo(result);
 
-    std::cerr << "Could not create UDP client socket" << std::endl;
+    std::cerr << "Error: Could not create UDP client socket" << std::endl;
     throw EX_UNAVAILABLE;
 }
 
+/**
+ * Set up the network as a server.
+ * @param address The IP address to bind to.
+ * @param port The port number to listen on.
+ */
 void Network::setUpServer(const std::string& address, int port)
 {
     struct addrinfo hints {};
@@ -75,7 +91,7 @@ void Network::setUpServer(const std::string& address, int port)
 
     if (ret != 0)
     {
-        std::cerr << "getaddrinfo failed: " << gai_strerror(ret) << std::endl;
+        std::cerr << "Error: getaddrinfo failed: " << gai_strerror(ret) << std::endl;
         throw EX_USAGE;
     }
 
@@ -89,7 +105,7 @@ void Network::setUpServer(const std::string& address, int port)
         int opt = 1;
         if (setsockopt(tmp, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
         {
-            std::cerr << "setsockopt failed: " << strerror(errno) << std::endl;
+            std::cerr << "Error: setsockopt failed: " << strerror(errno) << std::endl;
             close(tmp);
             continue;
         }
@@ -106,15 +122,20 @@ void Network::setUpServer(const std::string& address, int port)
 
     freeaddrinfo(result);
 
-    std::cerr << "Could not bind UDP server socket" << std::endl;
+    std::cerr << "Error: Could not bind UDP server socket" << std::endl;
     throw EX_UNAVAILABLE;
 }
 
+/**
+ * Send a message through the network.
+ * @param message The message to send.
+ * @return True if the message was sent successfully, false otherwise.
+ */
 bool Network::sendMessage(const std::string& message)
 {
     if (!this->knowsDest)
     {
-        std::cerr << "Destination address is not set" << std::endl;
+        std::cerr << "Error: Destination address is not set" << std::endl;
         return false;
     }
 
@@ -129,18 +150,22 @@ bool Network::sendMessage(const std::string& message)
 
     if (sent == -1)
     {
-        std::cerr << "sendto failed: " << strerror(errno) << std::endl;
+        std::cerr << "Error: sendto failed: " << strerror(errno) << std::endl;
         return false;
     }
 
     if (static_cast<std::size_t>(sent) != message.size())
     {
-        std::cerr << "sendto sent only part of the message" << std::endl;
+        std::cerr << "Error: sendto sent only part of the message" << std::endl;
         return false;
     }
     return true;
 }
 
+/**
+ * Receive a message from the network.
+ * @return The received message.
+ */
 std::string Network::receiveMessage()
 {
     char buffer[MAX_PACKET_SIZE];
@@ -159,7 +184,7 @@ std::string Network::receiveMessage()
 
     if (received == -1)
     {
-        std::cerr << "recvfrom failed: " << strerror(errno) << std::endl;
+        std::cerr << "Error: recvfrom failed: " << strerror(errno) << std::endl;
         throw EX_OSERR;
     }
 

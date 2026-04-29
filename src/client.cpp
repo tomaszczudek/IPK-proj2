@@ -3,11 +3,18 @@
 
 #define WINDOW_SIZE 16
 
+/**
+ * Constructor for the Client class.
+ * @param params Parameters for the client.
+ */
 Client::Client(Params params)
 {
     this->params = params;
 }
 
+/**
+ * Opens the input stream (file or stdin).
+ */
 void Client::openInput()
 {
     if (this->params.getFile() == "-")
@@ -28,13 +35,17 @@ void Client::openInput()
     }
 }
 
+/**
+ * Reads data from the input stream.
+ * @return String containing the data if EOF is not reached, otherwise empty string.
+ */
 std::string Client::readData()
 {
     std::vector<char> buffer(MAX_DATA_SIZE);
 
     if (this->input == nullptr)
     {
-        std::cerr << "Input is not open\n";
+        std::cerr << "Error: Input is not open\n";
         throw EX_OSERR;
     }
 
@@ -46,13 +57,17 @@ std::string Client::readData()
 
     if (this->input->bad())
     {
-        std::cerr << "Error while reading input\n";
+        std::cerr << "Error: Failed to read from input\n";
         throw EX_OSERR;
     }
 
     return "";
 }
 
+/**
+ * Initializes the client.
+ * Sets up client, packet, and opens input stream.
+ */
 void Client::initClient()
 {
     this->openInput();
@@ -66,6 +81,12 @@ void Client::initClient()
     }
 }
 
+/**
+ * Sends a message through the network.
+ * @param type Type of the message.
+ * @param id ID of the message.
+ * @param data Data to be sent.
+ */
 void Client::sendMessage(MessageType type, uint32_t id, const std::string& data)
 {
     this->packet.setPacket(type, id, data);
@@ -76,6 +97,9 @@ void Client::sendMessage(MessageType type, uint32_t id, const std::string& data)
     }
 }
 
+/**
+ * Starts the client-side FSM to handle the communication.
+ */
 void Client::startClient()
 {
     this->initClient();
@@ -95,11 +119,11 @@ void Client::startClient()
             case FSMType::START:
             {
                 this->sendMessage(MessageType::START, 0, "");
-                fsmState = FSMType::WAIT_CONFIRM;
+                fsmState = FSMType::WAIT_CONFIRM_START;
                 break;
             }
 
-            case FSMType::WAIT_CONFIRM:
+            case FSMType::WAIT_CONFIRM_START:
             {
                 receivedData = this->network.receiveMessage();
                 this->packet.deserialize(receivedData);
@@ -159,6 +183,7 @@ void Client::startClient()
                     unconfirmedPackets.erase(header.packetId);
                     fsmState = FSMType::SEND_DATA;
                 }
+                #if 0 // Change to timeout-based resend mechanism
                 else if (header.type == MessageType::RESEND)
                 {
                     auto it = unconfirmedPackets.find(header.packetId);
@@ -170,6 +195,7 @@ void Client::startClient()
 
                     fsmState = FSMType::WAIT_CONFIRM_DATA;
                 }
+                #endif
                 else
                 {
                     std::cerr << "Error: Expected CONFIRM_DATA message, received different type.\n";

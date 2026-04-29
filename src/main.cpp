@@ -1,4 +1,6 @@
 #include "params.hpp"
+#include "client.hpp"
+#include "server.hpp"
 
 int main(int argc, char **argv)
 {
@@ -8,16 +10,16 @@ int main(int argc, char **argv)
     {
         params.parseArgs(argc, argv);
 
-        #if 0
-        if (params.isServer())
+        if (params.getIsServer() == SERVER)
         {
             Server server(params);
+            server.startServer();
         }
         else
         {
             Client client(params);
+            client.startClient();
         }
-        #endif
     }
     catch (int error)
     {

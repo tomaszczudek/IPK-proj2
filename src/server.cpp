@@ -1,11 +1,18 @@
 #include "server.hpp"
 #include <map>
 
+/**
+ * Constructor for the Server class.
+ * @param params Parameters for the server.
+ */
 Server::Server(Params params)
 {
     this->params = params;
 }
 
+/**
+ * Opens the output stream (file or stdout).
+ */
 void Server::openOutput()
 {
     if (this->params.getFile() == "-")
@@ -26,11 +33,15 @@ void Server::openOutput()
     }
 }
 
+/**
+ * Writes data to the output stream.
+ * @param data The data to write.
+ */
 void Server::writeData(const std::string& data)
 {
     if (this->output == nullptr)
     {
-        std::cerr << "Output is not open\n";
+        std::cerr << "Error: Output is not open\n";
         throw EX_OSERR;
     }
 
@@ -38,11 +49,15 @@ void Server::writeData(const std::string& data)
 
     if (!(*this->output))
     {
-        std::cerr << "Output write failed" << std::endl;
+        std::cerr << "Error: Output write failed" << std::endl;
         throw EX_OSERR;
     }
 }
 
+/**
+ * Initializes the server.
+ * Sets up server, packet, and opens output stream.
+ */
 void Server::initServer()
 {
     this->openOutput();
@@ -56,6 +71,12 @@ void Server::initServer()
     }
 }
 
+/**
+ * Sends a message through the network.
+ * @param type Type of the message.
+ * @param id ID of the message.
+ * @param data Data to be sent.
+ */
 void Server::sendMessage(MessageType type, uint32_t id, const std::string& data)
 {
     this->packet.setPacket(type, id, data);
@@ -66,6 +87,9 @@ void Server::sendMessage(MessageType type, uint32_t id, const std::string& data)
     }
 }
 
+/**
+ * Starts the server-side FSM to handle the communication.
+ */
 void Server::startServer()
 {
     this->initServer();

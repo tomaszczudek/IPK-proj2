@@ -1,5 +1,8 @@
 #include "params.hpp"
 
+/**
+ * Constructor for the Params class.
+ */
 Params::Params()
 {
     this->address = "";
@@ -9,6 +12,9 @@ Params::Params()
     this->timeout = 1;
 }
 
+/**
+ * Prints the help message for the application.
+ */
 void Params::printHelp()
 {
     std::cout << "Usage" << std::endl;
@@ -29,6 +35,11 @@ void Params::printHelp()
     std::cout << "Exacly one of the options -s and -c must be specified." << std::endl;
 }
 
+/**
+ * Parses the command-line arguments.
+ * @param argc The number of command-line arguments.
+ * @param argv The array of command-line arguments.
+ */
 void Params::parseArgs(int argc, char **argv)
 {
     if (argc < 2)
@@ -133,6 +144,9 @@ void Params::parseArgs(int argc, char **argv)
     }
 }
 
+/**
+ * Validates the parsed parameters.
+ */
 void Params::validate()
 {
     if (this->isServer == UNDEFINED)

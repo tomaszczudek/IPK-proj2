@@ -8,7 +8,7 @@ TEST_SRCS := $(filter-out src/main.cpp, $(wildcard src/*.cpp)) $(wildcard tests/
 TEST_OBJS := $(TEST_SRCS:.cpp=.o)
 
 CXX := g++
-CXXFLAGS := -std=c++20 -g -Wall -Wextra -pedantic
+CXXFLAGS := -std=c++20 -g -Wall -Wextra -Werror -pedantic
 LDFLAGS = -lpcap
 
 all: $(EXE)
