@@ -8,6 +8,21 @@
 #include <netdb.h>
 #include <sysexits.h>
 
+#define WINDOW_SIZE 32
+#define RETRANSMIT_MS 120
+#define POLL_TIMEOUT_MS 20
+#define MAX_PACKET_SIZE 1200
+
+/**
+ * Structure for storing received messages and their sender addresses.
+ */
+struct ReceivedMessage
+{
+    std::string data;                //> Data of the received message
+    sockaddr_storage address{};      //> Address of the sender
+    socklen_t addressLength = 0;     //> Length of the sender's address
+};
+
 /*
  * Network class for handling UDP communication
  */
@@ -45,6 +60,16 @@ class Network
         void setUpServer(const std::string& address, int port);
 
         /**
+         * Stores the destination address.
+         */
+        void setDestination(const sockaddr_storage& address, socklen_t addressLength);
+
+        /**
+         * Checks if the supplied address is the currently stored destination.
+         */
+        bool isSameDestination(const sockaddr_storage& address, socklen_t addressLength) const;
+
+        /**
          * Send a message through the network.
          * @param message The message to send.
          * @return True if the message was sent successfully, false otherwise.
@@ -53,13 +78,13 @@ class Network
 
         /**
          * Receive a message from the network.
-         * @return The received message.
+         * @return The received message and sender address.
          */
-        std::string receiveMessage();
+        ReceivedMessage receiveMessage(int timeoutMs, bool& timedOut);
 
         // Getters
         bool isSocketSet() const { return this->sock != -1; }
-
-}; 
+        bool isDestinationKnown() const { return this->knowsDest; }
+};
 
 #endif // NETWORK_INFO_HPP

@@ -2,27 +2,33 @@
 #define PACKETS_HPP
 
 #define MAX_PACKET_SIZE 1200
-#define PACKET_HEADER_SIZE 9
+#define PACKET_HEADER_SIZE 13
 #define MAX_DATA_SIZE (MAX_PACKET_SIZE - PACKET_HEADER_SIZE)
 
 #include <string>
 #include <cstdint>
 #include <sysexits.h>
 #include <iostream>
+#include <cstring>
 
 /**
  * Enumeration for the finite state machine (FSM) states used in client/server communication. 
  */
 enum class FSMType : uint8_t
 {
-    START,              //> Initial state, waiting for connection start
-    WAIT_CONFIRM_START, //> Waiting for confirmation of connection start
-    SEND_DATA,          //> State for sending data packets
-    WAIT_CONFIRM_DATA,  //> Waiting for confirmation of data packets
-    END,                //> State for sending connection end message
+    SEND_START = 0,
+    WAIT_CONFIRM_START,
 
-    WAIT_START,        //> Waiting for connection start message
-    WAIT_DATA,         //> Waiting for data packets
+    SEND_DATA,
+    WAIT_CONFIRM_DATA,
+
+    SEND_END,
+    WAIT_CONFIRM_END,
+
+    END,
+
+    WAIT_START,
+    WAIT_DATA,
 };
 
 /**
@@ -30,14 +36,13 @@ enum class FSMType : uint8_t
  */
 enum class MessageType : uint8_t
 {
-    NONE,           //> No message type, initialization or invalid to be used
+    NONE = 0,           //> No message type, initialization or invalid to be used
     INVALID,        //> Local invalid message type, used for error handling
 
     START,          //> Initial message to start the connection
-    ERROR,          //> Error message for any issues during connection
-    SIG_TERM,       //> Signal to terminate the connection
-    CONFIRM,        //> Confirmation message(START, END)
+    CONFIRM_START,  //> Confirmation message for START
     END,            //> End message
+    CONFIRM_END,    //> Confirmation message for END
 
     DATA,           //> Message containing data
     CONFIRM_DATA,   //> Message indicating valid data, CONFIRM response to DATA
@@ -48,10 +53,11 @@ enum class MessageType : uint8_t
  */
 struct PacketHeader
 {
-    uint32_t packetId;  //> Unique identifier for the packet
-    uint16_t checkSum;  //> Checksum for data integrity verification
-    uint16_t dataSize;  //> Size of the data
-    MessageType type;   //> Type of the message contained in the packet
+    uint32_t connectionId;      //> Unique identifier for the connection
+    uint32_t packetId;          //> Unique identifier for the packet
+    uint16_t checkSum;          //> Checksum for data integrity verification
+    uint16_t dataSize;          //> Size of the data
+    MessageType type;           //> Type of the message contained in the packet
 };
 
 /**
@@ -71,11 +77,12 @@ class Packet
 
         /**
          * Sets the properties of the packet.
+         * @param connectionId The unique identifier for the connection.
          * @param type The type of the message.
          * @param id The unique identifier for the packet.
          * @param data The data of the packet.
          */
-        void setPacket(const MessageType type, const uint32_t id, const std::string& data);
+        void setPacket(const uint32_t connectionId, const MessageType type, const uint32_t id, const std::string& data);
 
         /**
          * Calculates the checksum for the given data.
@@ -90,12 +97,6 @@ class Packet
         void invalidate();
 
         /**
-         * Checks if the packet is valid based on its type.
-         * @return True if the packet is valid, false otherwise.
-         */
-        bool isValid() const { return this->header.type != MessageType::INVALID; }
-
-        /**
          * Serializes the packet into a string format for transmission.
          * @return The serialized packet as a string.
          */
@@ -106,6 +107,12 @@ class Packet
          * @param data The data string to deserialize.
          */
         void deserialize(const std::string& data);
+        
+        /**
+         * Checks if the packet is valid based on its type.
+         * @return True if the packet is valid, false otherwise.
+         */
+        bool isValid() const { return this->header.type != MessageType::INVALID; }
 
         // Getters and setters
         PacketHeader getHeader() const { return this->header; }

@@ -1,9 +1,11 @@
 #include "packets.hpp"
+
 /**
  * Constructor for the Packet class.
  */
 Packet::Packet()
 {
+    this->header.connectionId = 0;
     this->header.packetId = 0;
     this->header.checkSum = 0;
     this->header.dataSize = 0;
@@ -14,11 +16,12 @@ Packet::Packet()
 
 /**
  * Sets the properties of the packet.
+ * @param connectionId The unique identifier for the connection.
  * @param type The type of the message.
  * @param id The unique identifier for the packet.
  * @param data The data of the packet.
  */
-void Packet::setPacket(const MessageType type, const uint32_t id, const std::string& data)
+void Packet::setPacket(const uint32_t connectionId, const MessageType type, const uint32_t id, const std::string& data)
 {
     if (data.size() > MAX_DATA_SIZE)
     {
@@ -26,6 +29,7 @@ void Packet::setPacket(const MessageType type, const uint32_t id, const std::str
         throw EX_DATAERR;
     }
 
+    this->header.connectionId = connectionId;
     this->header.packetId = id;
     this->header.checkSum = 0;
     this->header.dataSize = static_cast<std::uint16_t>(data.size());
@@ -68,6 +72,7 @@ uint16_t Packet::checkSum(const std::string& data)
  */
 void Packet::invalidate()
 {
+    this->header.connectionId = 0;
     this->header.packetId = 0;
     this->header.checkSum = 0;
     this->header.dataSize = 0;
@@ -94,48 +99,72 @@ std::string Packet::serialize() const
         throw EX_DATAERR;
     }
 
-    std::string data = "";
-    data.reserve(PACKET_HEADER_SIZE + this->data.size());
+    std::string serializedData;
+    serializedData.reserve(PACKET_HEADER_SIZE + this->data.size());
 
     // Serialize header
-    data.append(reinterpret_cast<const char*>(&this->header.packetId), sizeof(this->header.packetId));
-    data.append(reinterpret_cast<const char*>(&this->header.checkSum), sizeof(this->header.checkSum));
-    data.append(reinterpret_cast<const char*>(&this->header.dataSize), sizeof(this->header.dataSize));
+    serializedData.append(reinterpret_cast<const char*>(&this->header.connectionId), sizeof(this->header.connectionId));
+    serializedData.append(reinterpret_cast<const char*>(&this->header.packetId), sizeof(this->header.packetId));
+    serializedData.append(reinterpret_cast<const char*>(&this->header.checkSum), sizeof(this->header.checkSum));
+    serializedData.append(reinterpret_cast<const char*>(&this->header.dataSize), sizeof(this->header.dataSize));
     uint8_t typeByte = static_cast<uint8_t>(this->header.type);
-    data.append(reinterpret_cast<const char*>(&typeByte), sizeof(typeByte));
-    // Serialize data
-    data.append(this->data);
+    serializedData.append(reinterpret_cast<const char*>(&typeByte), sizeof(typeByte));
 
-    if (data.size() > MAX_PACKET_SIZE)
+    // Serialize data
+    serializedData.append(this->data);
+
+    if (serializedData.size() > MAX_PACKET_SIZE)
     {
         std::cerr << "Error: Serialized packet exceeds maximum allowed size.\n";
         throw EX_DATAERR;
     }
-    
-    return data;
+
+    return serializedData;
 }
 
 /**
  * Deserializes a string into a packet, extracting the header and data.
- * @param data The data string to deserialize.
+ * @param serializedData The data string to deserialize.
  */
-void Packet::deserialize(const std::string& data)
+void Packet::deserialize(const std::string& serializedData)
 {
-    if (data.size() < sizeof(PacketHeader))
+    if (serializedData.size() < PACKET_HEADER_SIZE)
     {
         std::cerr << "Error: Data buffer too small to contain a valid packet header.\n";
         this->invalidate();
         return;
     }
 
-    if (data.size() > MAX_PACKET_SIZE)
+    if (serializedData.size() > MAX_PACKET_SIZE)
     {
         std::cerr << "Error: Data buffer exceeds maximum allowed packet size.\n";
         this->invalidate();
         return;
     }
 
-    std::memcpy(&this->header, data.data(), sizeof(PacketHeader));
+    int offset = 0;
+    std::memcpy(&this->header.connectionId, serializedData.data(), sizeof(this->header.connectionId));
+    offset += sizeof(this->header.connectionId);
+
+    std::memcpy(&this->header.packetId, serializedData.data() + offset, sizeof(this->header.packetId));
+    offset += sizeof(this->header.packetId);
+
+    std::memcpy(&this->header.checkSum, serializedData.data() + offset, sizeof(this->header.checkSum));
+    offset += sizeof(this->header.checkSum);
+
+    std::memcpy(&this->header.dataSize, serializedData.data() + offset, sizeof(this->header.dataSize));
+    offset += sizeof(this->header.dataSize);
+
+    uint8_t messageType = 0;
+    std::memcpy(&messageType, serializedData.data() + offset, sizeof(messageType));
+    this->header.type = static_cast<MessageType>(messageType);
+
+    if (messageType > static_cast<uint8_t>(MessageType::CONFIRM_DATA))
+    {
+        std::cerr << "Error: Invalid message type in packet header.\n";
+        this->invalidate();
+        return;
+    }
 
     if (this->header.dataSize > MAX_DATA_SIZE)
     {
@@ -144,7 +173,7 @@ void Packet::deserialize(const std::string& data)
         return;
     }
 
-    if (this->header.dataSize != (data.size() - sizeof(PacketHeader)))
+    if (this->header.dataSize != (serializedData.size() - PACKET_HEADER_SIZE))
     {
         std::cerr << "Error: Packet data size does not match received data size.\n";
         this->invalidate();
@@ -154,7 +183,7 @@ void Packet::deserialize(const std::string& data)
     std::uint16_t receivedChecksum = this->header.checkSum;
 
     this->header.checkSum = 0;
-    this->data = data.substr(sizeof(PacketHeader), this->header.dataSize);
+    this->data = serializedData.substr(PACKET_HEADER_SIZE, this->header.dataSize);
 
     if (receivedChecksum != this->checkSum(this->serialize()))
     {

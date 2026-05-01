@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <chrono>
 
 #include "packets.hpp"
 #include "network.hpp"
@@ -17,9 +18,10 @@ class Server
     private:
         Packet packet;              //> Packet instance for handling packet creation and parsing
         Network network;            //> Network instance for handling UDP communication
-        Params params;              //> Parameters for the server
+        const Params params;        //> Parameters for the server
         std::ofstream outputFile;   //> Output file stream for writing data to a file
         std::ostream* output;       //> Pointer to the output stream (file or stdout)
+        uint32_t connectionId;      //> Unique identifier for the connection
 
         /**
          * Opens the output stream (file or stdout).
@@ -45,13 +47,20 @@ class Server
          * @param data Data to be sent.
          */
         void sendMessage(MessageType type, uint32_t id, const std::string& data);
-        
+
+        /**
+         * Sends a message through the network twice.
+         * @param type Type of the message.
+         * @param id ID of the message.
+         */
+        void sendMessage(MessageType type, uint32_t id);
+
     public:
         /**
          * Constructor for the Server class.
          * @param params Parameters for the server.
          */
-        Server(Params params);
+        Server(const Params params);
 
         /**
          * Starts the server-side FSM to handle the communication.

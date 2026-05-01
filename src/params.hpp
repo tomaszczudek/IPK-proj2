@@ -19,7 +19,7 @@ class Params
         std::string file;       //> File to read from (server) or write to (client)
         int isServer;           //> Flag indicating if the application is running as a server
         int portUDP;            //> UDP port number
-        float timeout;            //> Timeout value
+        float timeout;          //> Timeout value is seconds
 
     public:
         /**

@@ -2,8 +2,8 @@
 #include <cstring>
 #include <iostream>
 #include <unistd.h>
-
-#define MAX_PACKET_SIZE 1200
+#include <poll.h>
+#include <cerrno>
 
 /**
  * Constructor for the Network class.
@@ -11,7 +11,8 @@
 Network::Network()
 {
     this->sock = -1;
-    this->destAddressLength = sizeof(this->destAddress);
+    this->destAddress = {};
+    this->destAddressLength = 0;
     this->knowsDest = false;
 }
 
@@ -39,7 +40,8 @@ void Network::setUpClient(const std::string& host, int port)
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
 
-    int ret = getaddrinfo(host.c_str(), std::to_string(port).c_str(), &hints, &result);
+    std::string portString = std::to_string(port);
+    int ret = getaddrinfo(host.c_str(), portString.c_str(), &hints, &result);
 
     if (ret != 0)
     {
@@ -47,16 +49,17 @@ void Network::setUpClient(const std::string& host, int port)
         throw EX_USAGE;
     }
 
-    for (struct addrinfo* rp = result; rp != nullptr; rp = rp->ai_next)
+    for (struct addrinfo* info = result; info != nullptr; info = info->ai_next)
     {
-        this->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        int tmp = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
 
-        if (this->sock == -1)
+        if (tmp == -1)
             continue;
 
-        std::memcpy(&this->destAddress, rp->ai_addr, rp->ai_addrlen);
-        this->destAddressLength = static_cast<socklen_t>(rp->ai_addrlen);
-        this->knowsDest = true;
+        this->sock = tmp;
+        sockaddr_storage resolvedAddress {};
+        std::memcpy(&resolvedAddress, info->ai_addr, info->ai_addrlen);
+        this->setDestination(resolvedAddress, static_cast<socklen_t>(info->ai_addrlen));
 
         freeaddrinfo(result);
         return;
@@ -87,7 +90,8 @@ void Network::setUpServer(const std::string& address, int port)
     if (!address.empty())
         bindAddress = address.c_str();
 
-    int ret = getaddrinfo(bindAddress, std::to_string(port).c_str(), &hints, &result);
+    std::string portString = std::to_string(port);
+    int ret = getaddrinfo(bindAddress, portString.c_str(), &hints, &result);
 
     if (ret != 0)
     {
@@ -95,9 +99,9 @@ void Network::setUpServer(const std::string& address, int port)
         throw EX_USAGE;
     }
 
-    for (struct addrinfo* rp = result; rp != nullptr; rp = rp->ai_next)
+    for (struct addrinfo* info = result; info != nullptr; info = info->ai_next)
     {
-        int tmp = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        int tmp = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
 
         if (tmp == -1)
             continue;
@@ -110,9 +114,12 @@ void Network::setUpServer(const std::string& address, int port)
             continue;
         }
 
-        if (bind(tmp, rp->ai_addr, rp->ai_addrlen) == 0)
+        if (bind(tmp, info->ai_addr, info->ai_addrlen) == 0)
         {
             this->sock = tmp;
+            this->knowsDest = false;
+            this->destAddress = {};
+            this->destAddressLength = 0;
             freeaddrinfo(result);
             return;
         }
@@ -127,12 +134,49 @@ void Network::setUpServer(const std::string& address, int port)
 }
 
 /**
+ * Stores the destination address.
+ */
+void Network::setDestination(const sockaddr_storage& address, socklen_t addressLength)
+{
+    if (addressLength > sizeof(this->destAddress))
+    {
+        std::cerr << "Error: Destination address is too large" << std::endl;
+        throw EX_OSERR;
+    }
+
+    this->destAddress = {};
+    std::memcpy(&this->destAddress, &address, addressLength);
+    this->destAddressLength = addressLength;
+    this->knowsDest = true;
+}
+
+/**
+ * Checks if the supplied address is the currently stored destination.
+ */
+bool Network::isSameDestination(const sockaddr_storage& address, socklen_t addressLength) const
+{
+    if (!this->knowsDest)
+        return false;
+
+    if (this->destAddressLength != addressLength)
+        return false;
+
+    return std::memcmp(&this->destAddress, &address, addressLength) == 0;
+}
+
+/**
  * Send a message through the network.
  * @param message The message to send.
  * @return True if the message was sent successfully, false otherwise.
  */
 bool Network::sendMessage(const std::string& message)
 {
+    if (this->sock == -1)
+    {
+        std::cerr << "Error: Socket is not initialized" << std::endl;
+        return false;
+    }
+
     if (!this->knowsDest)
     {
         std::cerr << "Error: Destination address is not set" << std::endl;
@@ -159,27 +203,59 @@ bool Network::sendMessage(const std::string& message)
         std::cerr << "Error: sendto sent only part of the message" << std::endl;
         return false;
     }
+
     return true;
 }
 
 /**
  * Receive a message from the network.
- * @return The received message.
+ * @return The received message and sender address.
  */
-std::string Network::receiveMessage()
+ReceivedMessage Network::receiveMessage(int timeoutMs, bool& timedOut)
 {
+    timedOut = false;
+
+    if (this->sock == -1)
+    {
+        std::cerr << "Error: Socket is not initialized\n";
+        throw EX_OSERR;
+    }
+
+    struct pollfd pollSock {};
+    pollSock.fd = this->sock;
+    pollSock.events = POLLIN;
+    int ret = poll(&pollSock, 1, timeoutMs);
+
+    if (ret == -1)
+    {
+        if (errno == EINTR)
+        {
+            timedOut = true;
+            return {};
+        }
+
+        std::cerr << "Error: poll failed: " << strerror(errno) << std::endl;
+        throw EX_OSERR;
+    }
+
+    if (ret == 0)
+    {
+        timedOut = true;
+        return {};
+    }
+
     char buffer[MAX_PACKET_SIZE];
 
-    sockaddr_storage senderAddress {};
-    socklen_t senderAddressLength = sizeof(senderAddress);
+    ReceivedMessage message {};
+    message.addressLength = sizeof(message.address);
 
     ssize_t received = recvfrom(
         this->sock,
         buffer,
         sizeof(buffer),
         0,
-        reinterpret_cast<struct sockaddr*>(&senderAddress),
-        &senderAddressLength
+        reinterpret_cast<struct sockaddr*>(&message.address),
+        &message.addressLength
     );
 
     if (received == -1)
@@ -188,12 +264,6 @@ std::string Network::receiveMessage()
         throw EX_OSERR;
     }
 
-    if (!this->knowsDest)
-    {
-        std::memcpy(&this->destAddress, &senderAddress, senderAddressLength);
-        this->destAddressLength = senderAddressLength;
-        this->knowsDest = true;
-    }
-
-    return std::string(buffer, static_cast<std::size_t>(received));
+    message.data = std::string(buffer, static_cast<std::size_t>(received));
+    return message;
 }
