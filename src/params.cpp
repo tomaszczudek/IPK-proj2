@@ -28,11 +28,11 @@ void Params::printHelp()
     std::cout << "\t-p PORT    -- UDP port number" << std::endl;
     std::cout << "\t-a ADDRESS -- in server mode - the local bind address. If omitted, the server listens on all suitable local addresses." << std::endl;
     std::cout << "\t-a HOST    -- in client mode - the destination hostname or IPv4/IPv6 address." << std::endl;
-    std::cout << "\t-i INPUT   -- the input file to send. If omitted or if INPUT is -, the client reads from stdin.:" << std::endl;
-    std::cout << "\t-o OUTPUT  -- the output file to create/overwrite. If omitted or if OUTPUT is -, the server writes the received data to stdout." << std::endl;
+    std::cout << "\t-i INPUT   -- the input file to send. If omitted or if INPUT is -, the client reads from stdin." << std::endl;
+    std::cout << "\t-o OUTPUT  -- the output file to create/overwrite. If omitted or if OUTPUT is -, the server writes to stdout." << std::endl;
     std::cout << "\t-w TIMEOUT -- timeout in whole seconds. Default value 1." << std::endl << std::endl;
 
-    std::cout << "Exacly one of the options -s and -c must be specified." << std::endl;
+    std::cout << "Specify exactly one of the options `-s` or `-c`." << std::endl;
 }
 
 /**

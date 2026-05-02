@@ -1,3 +1,7 @@
+/**
+ * Při tvorbě této testovací sady byl využit ChatGPT jako pomocný nástroj.
+ */
+
 #include <gtest/gtest.h>
 
 #include <cstdlib>

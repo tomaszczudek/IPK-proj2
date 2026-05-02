@@ -33,6 +33,7 @@ NixDevShellName:
 
 test: tests/test.cpp $(EXE)			
 	$(CXX) $(CXXFLAGS) tests/test.cpp $(LDFLAGS) -lgtest -lgtest_main -pthread -o $(TEST_EXE)
+	chmod +x $(TEST_EXE)
 	@echo "Running tests..."
 	./$(TEST_EXE)
 
