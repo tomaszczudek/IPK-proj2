@@ -16,19 +16,20 @@
  */
 enum class FSMType : uint8_t
 {
-    SEND_START = 0,
-    WAIT_CONFIRM_START,
+    SEND_START = 0,         //> State for sending the initial START message
+    WAIT_CONFIRM_START,     //> State for waiting for confirmation of the START message
 
-    SEND_DATA,
-    WAIT_CONFIRM_DATA,
+    SEND_DATA,              //> State for sending DATA packets
+    WAIT_CONFIRM_DATA,      //> State for waiting for confirmation of DATA packets
 
-    SEND_END,
-    WAIT_CONFIRM_END,
+    SEND_END,               //> State for sending the END message
+    WAIT_CONFIRM_END,       //> State for waiting for confirmation of the END message
 
-    END,
+    END,                    //> State indicating the end of the communication process
 
-    WAIT_START,
-    WAIT_DATA,
+    // Server-side states
+    WAIT_START,             //> State for waiting for the initial START message
+    WAIT_DATA,              //> State for waiting for DATA packets
 };
 
 /**
@@ -36,7 +37,7 @@ enum class FSMType : uint8_t
  */
 enum class MessageType : uint8_t
 {
-    NONE = 0,           //> No message type, initialization or invalid to be used
+    NONE = 0,       //> No message type, initialization or invalid to be used
     INVALID,        //> Local invalid message type, used for error handling
 
     START,          //> Initial message to start the connection

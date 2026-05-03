@@ -133,7 +133,7 @@ void Client::startClient()
     bool reachedEOF = false;
     std::map<uint32_t, SentPacketsData> unconfirmedPackets;
 
-    auto timeEndSent = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point timeEndSent;
 
     while (fsmState != FSMType::END)
     {
@@ -310,10 +310,9 @@ void Client::startClient()
                 break;
             }
 
+            case FSMType::END:
             default:
-            {
                 break;
-            }
         }
     }
 }

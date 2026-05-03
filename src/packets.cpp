@@ -142,6 +142,7 @@ void Packet::deserialize(const std::string& serializedData)
         return;
     }
 
+    // Deserialize header
     int offset = 0;
     std::memcpy(&this->header.connectionId, serializedData.data(), sizeof(this->header.connectionId));
     offset += sizeof(this->header.connectionId);
@@ -155,6 +156,7 @@ void Packet::deserialize(const std::string& serializedData)
     std::memcpy(&this->header.dataSize, serializedData.data() + offset, sizeof(this->header.dataSize));
     offset += sizeof(this->header.dataSize);
 
+    // Deserialize message type
     uint8_t messageType = 0;
     std::memcpy(&messageType, serializedData.data() + offset, sizeof(messageType));
     this->header.type = static_cast<MessageType>(messageType);
@@ -180,8 +182,8 @@ void Packet::deserialize(const std::string& serializedData)
         return;
     }
 
+    // Validate checksum and add data
     std::uint16_t receivedChecksum = this->header.checkSum;
-
     this->header.checkSum = 0;
     this->data = serializedData.substr(PACKET_HEADER_SIZE, this->header.dataSize);
 

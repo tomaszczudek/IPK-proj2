@@ -22,9 +22,7 @@ Network::Network()
 Network::~Network()
 {
     if (this->sock != -1)
-    {
         close(this->sock);
-    }
 }
 
 /**

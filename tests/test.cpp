@@ -41,11 +41,6 @@ namespace
 
         return -1;
     }
-
-    bool projectBinaryExists()
-    {
-        return access("./ipk-rdt", X_OK) == 0;
-    }
 } // namespace
 
 // Packet tests
@@ -326,36 +321,24 @@ TEST(NetworkTest, differentPort)
 // CLI tests
 TEST(CliTest, help)
 {
-    if (!projectBinaryExists())
-        GTEST_SKIP() << "./ipk-rdt is not built";
-
     int status = std::system("./ipk-rdt -h > /tmp/ipk_rdt_help.out 2> /tmp/ipk_rdt_help.err");
     EXPECT_EQ(exitCodeFromSystem(status), 0);
 }
 
 TEST(CliTest, missingMode)
 {
-    if (!projectBinaryExists())
-        GTEST_SKIP() << "./ipk-rdt is not built";
-
     int status = std::system("./ipk-rdt -p 2024 > /tmp/ipk_rdt_missing_mode.out 2> /tmp/ipk_rdt_missing_mode.err");
     EXPECT_NE(exitCodeFromSystem(status), 0);
 }
 
 TEST(CliTest, clientNoAddress)
 {
-    if (!projectBinaryExists())
-        GTEST_SKIP() << "./ipk-rdt is not built";
-
     int status = std::system("./ipk-rdt -c -p 2024 > /tmp/ipk_rdt_missing_addr.out 2> /tmp/ipk_rdt_missing_addr.err");
     EXPECT_NE(exitCodeFromSystem(status), 0);
 }
 
 TEST(CliTest, invalidPort)
 {
-    if (!projectBinaryExists())
-        GTEST_SKIP() << "./ipk-rdt is not built";
-
     int status = std::system("./ipk-rdt -s -p 70000 > /tmp/ipk_rdt_bad_port.out 2> /tmp/ipk_rdt_bad_port.err");
     EXPECT_NE(exitCodeFromSystem(status), 0);
 }

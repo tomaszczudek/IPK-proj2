@@ -2,6 +2,12 @@
 #include "client.hpp"
 #include "server.hpp"
 
+/**
+ * Main function for the client/server application.
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line arguments.
+ * @return Exit status.
+ */
 int main(int argc, char **argv)
 {
     Params params;

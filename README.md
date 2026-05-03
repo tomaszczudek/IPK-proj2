@@ -39,9 +39,7 @@ size of 1200 bytes, where 13 bytes are reserved for the packet header and the re
 > **Important:** The options `-s` and `-c` are mutually exclusive; exactly one of them must be specified.
 
 ## 3. Implemented Features & Behavior
-* UDP communication: The project uses UDP sockets for both client and server communication.
 * IPv4/IPv6 support: Address resolution is implemented with `getaddrinfo()` using `AF_UNSPEC`, therefore both IPv4 and IPv6 addresses may be used.
-* Client/server modes: The executable supports both sending and receiving data depending on the selected mode.
 * Custom packet format: Every packet contains a connection ID, packet ID, checksum, payload length, and message type.
 * Reliability over UDP: The protocol confirms the beginning of the transfer, individual data packets, and the end of the transfer.
 * Sliding window: The client may keep up to `WINDOW_SIZE` unconfirmed data packets.
@@ -97,7 +95,7 @@ the server stores the sender address and connection identifier, then replies wit
 
 After all input data has been sent and acknowledged, the client sends an `END` packet. 
 The server confirms this packet using `CONFIRM_END`. After this confirmation, both sides
- can terminate the transfer.
+can terminate the transfer.
 
 The usual successful communication flow is shown in the [Protocol Sequence Diagram](#protocol-sequence-diagram).
 
@@ -107,18 +105,21 @@ and to match them with received acknowledgements. The server uses packet IDs to 
 whether a packet is expected, duplicated, or out of order.
 
 For each valid `DATA` packet, the server sends a `CONFIRM_DATA` message with the corresponding
- `packetId`. The client removes the packet from its unconfirmed packet list only after 
- receiving the matching acknowledgement.
+`packetId`. The client removes the packet from its unconfirmed packet list only after 
+receiving the matching acknowledgement.
 
 This mechanism allows the client to track which packets were delivered successfully 
 and which packets must be retransmitted.
 
 ### 5.4 Retransmission strategy and timeout handling
-Because UDP does not guarantee delivery, the client keeps sent but unconfirmed packets in memory. Each stored packet contains its serialized data and the time when it was last sent.
+Because UDP does not guarantee delivery, the client keeps sent but unconfirmed
+packets in memory. Each stored packet contains its serialized data and the time when it was last sent.
 
-If an acknowledgement is not received before the retransmission timeout expires, the client sends the packet again. The same idea is used for important control packets such as `START` and `END`.
+If an acknowledgement is not received before the retransmission timeout expires,
+the client sends the packet again. The same idea is used for important control packets such as `START` and `END`.
 
-The application also uses a global timeout. If no valid progress is made for too long, the transfer is terminated with an error instead of waiting forever.
+The application also uses a global timeout. If no valid progress is made for too
+long, the transfer is terminated with an error instead of waiting forever.
 
 Timeout handling is therefore used for two purposes:
 
@@ -127,11 +128,14 @@ Timeout handling is therefore used for two purposes:
 
 ### 5.5 Duplicate and out-of-order packet handling
 The receiver must handle packets that arrive more than once or in a different order.
-Duplicate packets are not written to the output again. Instead, the server resends the corresponding confirmation so that the client can stop retransmitting them.
+Duplicate packets are not written to the output again. Instead, the server resends 
+the corresponding confirmation so that the client can stop retransmitting them.
 
-Out-of-order data packets are accepted and temporarily stored if they belong to the current connection. Once all previous packets have been received, the buffered data can be written in the correct order.
+Out-of-order data packets are accepted and temporarily stored if they belong to the 
+current connection. Once all previous packets have been received, the buffered data can be written in the correct order.
 
-Packets from a different address or with a different `connectionId` are ignored, because they do not belong to the active transfer session.
+Packets from a different address or with a different `connectionId` are ignored, 
+because they do not belong to the active transfer session.
 
 ### 5.6 Connection identification strategy
 Each client transfer session uses a generated `connectionId`. This value is placed into 
@@ -156,6 +160,8 @@ window is full, the client waits for acknowledgements or retransmission events
 before sending more data.
 
 ### 5.8 UML and protocol diagrams
+> **Important:** The diagrams are loaded from Google Drive. If they are not displayed, make sure
+that the device is connected to the internet and that the image links are accessible.
 ### UML Class Diagram
 
 <p align="center">
@@ -216,7 +222,10 @@ Automated testing is implemented using the **Google Test (GTest)** framework, wh
    * Invalid argument combinations return non-zero exit codes.
 
 ### 6.2 Why it was tested
-These parts were tested because they form the core of the application. The program depends on correct packet serialization, reliable checksum validation, valid command-line arguments, and proper recognition of remote endpoints. If any of these parts failed, the client and server could reject valid packets, accept corrupted data, communicate with the wrong peer, or start with an invalid configuration.
+These parts were tested because they form the core of the application. The program depends 
+on correct packet serialization, reliable checksum validation, valid command-line arguments,
+and proper recognition of remote endpoints. If any of these parts failed, the client and 
+server could reject valid packets, accept corrupted data, communicate with the wrong peer, or start with an invalid configuration.
 
 ### 6.3 How it was tested
 Using C++ unit tests for internal classes (`Params`, `Network`, `Packet`) and `std::system` calls to verify the binary's exit status.
@@ -236,17 +245,20 @@ Nix `c` developer shell on an Ubuntu instance (WSL2).
 | CLI behavior | `./ipk-rdt -c -p 2024` | Missing destination address is rejected | PASS |
 
 ### Comparable Tool - TFTP
-The project is similar to TFTP because both transfer data over UDP and implement their own reliability mechanisms. Unlike TFTP, this implementation uses a custom packet header, explicit connection ID, sliding window behavior, and packet buffering on the receiver side.
+The project is similar to TFTP because both transfer data over UDP and implement their
+own reliability mechanisms. Unlike TFTP, this implementation uses a custom packet header,
+explicit connection ID, sliding window behavior, and packet buffering on the receiver side.
 
 ## 7. Known Limitations
 * Maximum transfer size is limited by the 32-bit `packetId`. With the current maximum packet size, the theoretical upper bound is approximately `1200 * 2^32` bytes, and the usable payload limit is lower because 13 bytes are used by the `PacketHeader`.
 * The server handles one selected client connection after receiving `START`, it is not a multi-client file server.
 
-## 8. AI
+## 8. Use of Generative AI
 During the project, ChatGPT was used as a supporting tool for:
-* creating the automated tests (GoogleTest),
+* creating the automated tests using GoogleTest,
 * improving the structure and wording of this README,
-* creating images for [5.8 UML and protocol diagrams](#58-uml-and-protocol-diagrams)
+* creating diagrams in section [5.8 UML and protocol diagrams](#58-uml-and-protocol-diagrams)
+
 ## 9. Bibliography
 * POSTEL, Jon, 1980. RFC 768: User Datagram Protocol. Online. Request for Comments. Internet Engineering Task Force. Available at: https://www.rfc-editor.org/rfc/rfc768. [Accessed 2 May 2026].
 * POSTEL, Jon, 1981. RFC 793: Transmission Control Protocol. Online. Request for Comments. Internet Engineering Task Force. Available at: https://www.rfc-editor.org/rfc/rfc793. [Accessed 2 May 2026].
